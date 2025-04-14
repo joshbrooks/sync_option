@@ -1,0 +1,22 @@
+[project]
+name = "sync-option"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Josh Brooks", email = "josh.vdbroek@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+sync-option = "sync_option:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "django>=5.2",
+]
