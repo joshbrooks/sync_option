@@ -1,0 +1,56 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Options in Group: {{ group_name }}</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        .updated {
+            background-color: #ffffcc;
+            transition: background-color 1s;
+        }
+        .back-link {
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <a href="{% url 'groups' %}" class="back-link">← Back to Groups</a>
+    <h1>Options in Group: {{ group_name }}</h1>
+    <div id="lastSync">Last sync: <span id="lastSyncTime">Never</span></div>
+    <table id="optionsTable">
+        <thead>
+            <tr>
+                <th>Value</th>
+                <th>Value Type</th>
+                <th>English Name</th>
+                <th>English Description</th>
+                <th>Last Updated</th>
+            </tr>
+        </thead>
+        <tbody id="optionsTableBody">
+        </tbody>
+    </table>
+
+    <script>
+        const GROUP_NAME = "{{ group_name }}";
+        const OPTIONS_API_URL = "{% url 'api-1.0.0:get_group_options' group_name=group_name %}";
+    </script>
+    <script src="{% static 'optionsexample/js/options.js' %}"></script>
+</body>
+</html> 

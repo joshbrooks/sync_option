@@ -54,6 +54,23 @@ The application focuses on the client-side implementation:
 - [ ] Document API integration patterns
 - [ ] Provide code examples
 
+## Features
+
+### Group List Page
+- Displays all option groups
+- Shows group names and descriptions
+- Auto-refreshes every 5 seconds
+- Highlights updated rows
+- Stores data in IndexedDB for offline access
+
+### Options List Page
+- Accessible by clicking on a group name
+- Shows all options within the selected group
+- Displays option values, names, and descriptions
+- Auto-refreshes every 5 seconds
+- Highlights updated rows
+- Stores data in IndexedDB for offline access
+
 ## Technical Stack
 
 - **Frontend**
