@@ -84,6 +84,7 @@ function updateTable(groups) {
             <td>${group.names.en || ''}</td>
             <td>${group.descriptions.en || ''}</td>
             <td>${new Date(group.last_updated).toLocaleString()}</td>
+            <td><a href="/groups/${group.name}/" class="options-link">Options</a></td>
         `;
         
         tbody.appendChild(row);
