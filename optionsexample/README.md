@@ -1,77 +1,78 @@
 # Options Example Application
 
-This application serves as both a demonstration of the API and a reference implementation for client-side synchronization code. It showcases how to effectively synchronize data between a backend API and IndexedDB on the client side.
+This application serves as a reference implementation for client-side synchronization with the `sync_option` API. It demonstrates how to effectively synchronize data between the `sync_option` API and IndexedDB on the client side.
 
 ## Purpose
 
-- Demonstrate the API functionality and usage patterns
+- Demonstrate how to interact with the `sync_option` API
 - Provide a reference implementation for client-side data synchronization
-- Showcase best practices for IndexedDB integration with Django backend
+- Showcase best practices for IndexedDB integration with the `sync_option` API
 
 ## Architecture Overview
 
-The application consists of two main components:
+The application focuses on the client-side implementation:
 
-1. **Backend (Django)**
-   - REST API endpoints for data operations
-   - Authentication and authorization
-   - Data models and business logic
+1. **API Integration Layer**
+   - Authentication with `sync_option` API
+   - API endpoint consumption
+   - Data transformation
 
-2. **Frontend (Client-side)**
+2. **Client-side Storage**
    - IndexedDB implementation for offline storage
-   - Synchronization logic
-   - User interface components
+   - Data schema matching `sync_option` models
+   - Local CRUD operations
+
+3. **Synchronization Service**
+   - Two-way sync with `sync_option` API
+   - Conflict resolution
+   - Offline-first approach
 
 ## Implementation Plan
 
-### Phase 1: Backend Setup
-- [ ] Define data models
-- [ ] Create API endpoints
-- [ ] Implement authentication
-- [ ] Set up serializers
-- [ ] Write API documentation
+### Phase 1: API Integration
+- [ ] Study `sync_option` API documentation
+- [ ] Implement authentication flow
+- [ ] Create API client wrapper
+- [ ] Set up error handling
 
-### Phase 2: Frontend Development
-- [ ] Set up IndexedDB schema
-- [ ] Implement basic CRUD operations
-- [ ] Create synchronization service
-- [ ] Build user interface components
+### Phase 2: IndexedDB Setup
+- [ ] Define database schema matching `sync_option` models
+- [ ] Implement database versioning
+- [ ] Create CRUD operations
+- [ ] Add data validation
 
-### Phase 3: Synchronization Logic
+### Phase 3: Synchronization Service
 - [ ] Implement offline-first approach
 - [ ] Create conflict resolution strategy
 - [ ] Handle network status changes
 - [ ] Implement data consistency checks
+- [ ] Add sync status indicators
 
 ### Phase 4: Testing and Documentation
-- [ ] Write unit tests
-- [ ] Create integration tests
-- [ ] Document API usage
+- [ ] Write unit tests for IndexedDB operations
+- [ ] Create integration tests with `sync_option` API
+- [ ] Document API integration patterns
 - [ ] Provide code examples
 
 ## Technical Stack
 
-- **Backend**
-  - Django
-  - Django REST Framework
-  - SQLite (development)
-  
 - **Frontend**
   - JavaScript/TypeScript
   - IndexedDB
   - Service Workers (for offline support)
+  - Fetch API for HTTP requests
 
 ## Getting Started
 
 1. Clone the repository
 2. Install dependencies
-3. Set up the development environment
-4. Run migrations
-5. Start the development server
+3. Configure API connection settings
+4. Build and run the application
 
-## API Documentation
+## API Integration
 
-[Link to API documentation will be added here]
+The application integrates with the following `sync_option` API endpoints:
+[API endpoints will be documented here]
 
 ## Contributing
 

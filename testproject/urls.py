@@ -15,7 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from ninja import NinjaAPI
 from sync_option.api import router as sync_option_router
 
@@ -28,4 +28,5 @@ api.add_router("/sync-option", sync_option_router)
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', api.urls),  # Django Ninja API endpoints
+    path('', include('optionsexample.urls')),
 ]

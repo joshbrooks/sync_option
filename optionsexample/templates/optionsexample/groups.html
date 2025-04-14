@@ -1,0 +1,49 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Option Groups</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        .updated {
+            background-color: #ffffcc;
+            transition: background-color 1s;
+        }
+    </style>
+</head>
+<body>
+    <h1>Option Groups</h1>
+    <div id="lastSync">Last sync: <span id="lastSyncTime">Never</span></div>
+    <table id="groupsTable">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>English Name</th>
+                <th>English Description</th>
+                <th>Last Updated</th>
+            </tr>
+        </thead>
+        <tbody id="groupsTableBody">
+        </tbody>
+    </table>
+
+    <script>
+        const GROUPS_API_URL = "{% url 'api-1.0.0:list_groups' %}";
+    </script>
+    <script src="{% static 'optionsexample/js/groups.js' %}"></script>
+</body>
+</html> 
