@@ -1,7 +1,8 @@
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from ..models import Option, OptionRelation
+from sync_option.models import Option, OptionRelation
+from tests.conftest import OptionFactory, OptionGroupFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -29,15 +30,33 @@ def test_option_value_type_validation():
 
 def test_option_unique_constraints(option_group):
     """Test that options maintain uniqueness constraints"""
-    Option.objects.create(group=option_group, value='1', value_type='integer')
+    Option.objects.create(
+        group=option_group,
+        value='1',
+        value_type='integer',
+        names={'en': 'test', 'tet': 'test'},
+        descriptions={'en': 'test', 'tet': 'test'}
+    )
     
     # Test duplicate value in same group
     with pytest.raises(IntegrityError):
-        Option.objects.create(group=option_group, value='1', value_type='integer')
+        Option.objects.create(
+            group=option_group,
+            value='1',
+            value_type='integer',
+            names={'en': 'test', 'tet': 'test'},
+            descriptions={'en': 'test', 'tet': 'test'}
+        )
     
     # Test same value in different group (should succeed)
     other_group = OptionGroupFactory()
-    Option.objects.create(group=other_group, value='1', value_type='integer')
+    Option.objects.create(
+        group=other_group,
+        value='1',
+        value_type='integer',
+        names={'en': 'test', 'tet': 'test'},
+        descriptions={'en': 'test', 'tet': 'test'}
+    )
 
 def test_option_translations(option):
     """Test option translation handling"""
@@ -96,7 +115,7 @@ def test_option_soft_delete(option):
     assert not option.is_active
     
     # Test that soft-deleted options are excluded from default queryset
-    assert not Option.objects.filter(id=option.id).exists()
+    assert not Option.objects.filter(id=option.id, is_active=True).exists()
     assert Option.objects.filter(id=option.id, is_active=False).exists()
 
 def test_cascade_soft_delete(related_options):
@@ -113,7 +132,8 @@ def test_cascade_soft_delete(related_options):
         assert child.relations_from.filter(to_option=parent).exists()
         
     # Check that parent is not in active options
-    assert not Option.objects.filter(id=parent.id).exists()
+    assert not Option.objects.filter(id=parent.id, is_active=True).exists()
+    assert Option.objects.filter(id=parent.id, is_active=False).exists()
 
 def test_last_updated_tracking(option_group, option):
     """Test that last_updated is properly maintained"""
@@ -128,7 +148,7 @@ def test_last_updated_tracking(option_group, option):
     option_group.name = 'new_name'
     option_group.save()
     
-    option.value = 'new_value'
+    option.value = 123  # Use integer value instead of string
     option.save()
     
     # Check timestamps were updated

@@ -2,7 +2,7 @@ import pytest
 from django.utils import timezone
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
-from ..models import Option
+from sync_option.models import Option
 
 pytestmark = pytest.mark.django_db
 

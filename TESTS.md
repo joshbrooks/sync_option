@@ -18,7 +18,7 @@ from factory.django import DjangoModelFactory
 # Factories
 class OptionGroupFactory(DjangoModelFactory):
     class Meta:
-        model = 'sync_project.OptionGroup'
+        model = 'sync_option.OptionGroup'
     
     name = Faker('word')
     names = LazyAttribute(lambda _: {'en': Faker('word'), 'tet': Faker('word')})
@@ -26,7 +26,7 @@ class OptionGroupFactory(DjangoModelFactory):
 
 class OptionFactory(DjangoModelFactory):
     class Meta:
-        model = 'sync_project.Option'
+        model = 'sync_option.Option'
     
     group = SubFactory(OptionGroupFactory)
     value = Faker('pyint')
@@ -37,12 +37,21 @@ class OptionFactory(DjangoModelFactory):
 
 class OptionRelationFactory(DjangoModelFactory):
     class Meta:
-        model = 'sync_project.OptionRelation'
+        model = 'sync_option.OptionRelation'
     
     from_option = SubFactory(OptionFactory)
     to_option = SubFactory(OptionFactory)
     relation_type = 'belongs_to'
     metadata = LazyAttribute(lambda _: {})
+
+# Note on Faker Usage:
+# - Use factory.Faker for most fields (e.g., name = Faker('word'))
+# - For JSON fields, use faker.Faker with LazyAttribute like:
+#   names = LazyAttribute(lambda _: {
+#       'en': faker.word(),
+#       'tet': faker.word()
+#   })
+# This ensures proper JSON structure and avoids factory-boy's string serialization
 
 # Fixtures
 @pytest.fixture
@@ -256,10 +265,10 @@ pytest tests/test_relationships.py
 pytest tests/test_performance.py
 
 # Run with coverage
-pytest --cov=sync_project tests/
+pytest --cov=sync_option tests/
 
 # Generate coverage report
-pytest --cov=sync_project --cov-report=html tests/
+pytest --cov=sync_option --cov-report=html tests/
 ```
 
 ## CI Integration
@@ -268,7 +277,7 @@ pytest --cov=sync_project --cov-report=html tests/
 test:
   script:
     - pip install -r requirements-test.txt
-    - pytest --cov=sync_project --cov-report=xml tests/
+    - pytest --cov=sync_option --cov-report=xml tests/
     - coverage report --fail-under=90
   artifacts:
     reports:

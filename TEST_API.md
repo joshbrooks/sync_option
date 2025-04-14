@@ -260,7 +260,7 @@ pytest tests/test_api.py -k "sync"  # Run only sync tests
 pytest tests/test_api.py -k "relation"  # Run only relation tests
 
 # Run with coverage
-pytest --cov=sync_project.api tests/test_api.py
+pytest --cov=sync_option.api tests/test_api.py
 ```
 
 ## CI Integration
