@@ -39,7 +39,7 @@ def test_option_unique_constraints(option_group):
     )
     
     # Test duplicate value in same group
-    with pytest.raises(IntegrityError):
+    with pytest.raises(ValidationError) as exc_info:
         Option.objects.create(
             group=option_group,
             value='1',
@@ -47,6 +47,7 @@ def test_option_unique_constraints(option_group):
             names={'en': 'test', 'tet': 'test'},
             descriptions={'en': 'test', 'tet': 'test'}
         )
+    assert 'Option with this Group and Value already exists.' in str(exc_info.value)
     
     # Test same value in different group (should succeed)
     other_group = OptionGroupFactory()
@@ -92,16 +93,31 @@ def test_relationship_constraints():
     """Test relationship validation and constraints"""
     # Test self-referential relationship
     option = OptionFactory()
-    relation = OptionRelation(from_option=option, to_option=option)
+    relation = OptionRelation(
+        from_option=option,
+        to_option=option,
+        relation_type='belongs_to',
+        metadata={'test': 'data'}
+    )
     with pytest.raises(ValidationError):
         relation.clean()
     
     # Test circular relationships
     opt1 = OptionFactory()
     opt2 = OptionFactory()
-    OptionRelation.objects.create(from_option=opt1, to_option=opt2)
+    OptionRelation.objects.create(
+        from_option=opt1,
+        to_option=opt2,
+        relation_type='belongs_to',
+        metadata={'test': 'data'}
+    )
     
-    relation = OptionRelation(from_option=opt2, to_option=opt1)
+    relation = OptionRelation(
+        from_option=opt2,
+        to_option=opt1,
+        relation_type='belongs_to',
+        metadata={'test': 'data'}
+    )
     with pytest.raises(ValidationError):
         relation.clean()
 

@@ -1,11 +1,15 @@
 from datetime import datetime
 from typing import List, Optional
-from ninja import NinjaAPI, Schema
+from ninja import NinjaAPI, Schema, Router
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from .models import OptionGroup, Option, OptionRelation
 
-api = NinjaAPI()
+# Create a timezone-aware minimum datetime
+MIN_DATETIME = timezone.make_aware(datetime.min)
+
+# Create a router instead of a NinjaAPI instance
+router = Router()
 
 # Schemas
 class OptionGroupSchema(Schema):
@@ -40,18 +44,18 @@ class SyncResponse(Schema):
     last_sync: datetime
 
 # Endpoints
-@api.get("/options/groups", response=List[OptionGroupSchema])
+@router.get("/options/groups", response=List[OptionGroupSchema])
 def list_groups(request):
     """Get all option groups"""
     return OptionGroup.objects.all()
 
-@api.get("/options/groups/{group_name}", response=List[OptionSchema])
+@router.get("/options/groups/{group_name}", response=List[OptionSchema])
 def get_group_options(request, group_name: str):
     """Get all options for a specific group"""
     group = get_object_or_404(OptionGroup, name=group_name)
     return Option.objects.filter(group=group, is_active=True)
 
-@api.get("/options/sync", response=SyncResponse)
+@router.get("/options/sync", response=SyncResponse)
 def sync_options(
     request,
     last_sync: Optional[datetime] = None,
@@ -75,7 +79,7 @@ def sync_options(
     
     deleted = Option.objects.filter(
         is_active=False,
-        last_updated__gt=last_sync if last_sync else timezone.datetime.min
+        last_updated__gt=last_sync if last_sync else MIN_DATETIME
     ).values_list('id', flat=True)
     
     return {
@@ -85,7 +89,7 @@ def sync_options(
         "last_sync": timezone.now()
     }
 
-@api.get("/options/relations/{group_name}/{value}", response=List[OptionSchema])
+@router.get("/options/relations/{group_name}/{value}", response=List[OptionSchema])
 def get_related_options(
     request,
     group_name: str,
@@ -104,7 +108,7 @@ def get_related_options(
     
     return [relation.to_option for relation in relations.select_related('to_option')]
 
-@api.get("/options/relations/reverse/{group_name}/{value}", response=List[OptionSchema])
+@router.get("/options/relations/reverse/{group_name}/{value}", response=List[OptionSchema])
 def get_reverse_relations(
     request,
     group_name: str,

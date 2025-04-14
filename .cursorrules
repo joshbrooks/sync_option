@@ -1,0 +1,10 @@
+# Project Rules and Guidelines
+
+## Package Management
+- Use `uv` instead of `pip` for package management
+- Example: `uv pip install <package>` instead of `pip install <package>`
+- Example: `uv pip show <package>` instead of `pip show <package>`
+
+## Development Workflow
+- Always use the virtual environment located at `.venv`
+- Activate the environment with `source .venv/bin/activate` before running commands 

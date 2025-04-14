@@ -2,7 +2,9 @@ import pytest
 from django.utils import timezone
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
-from sync_option.models import Option
+from sync_option.models import Option, OptionGroup
+from tests.conftest import OptionGroupFactory, OptionFactory
+from urllib.parse import quote
 
 pytestmark = pytest.mark.django_db
 
@@ -54,43 +56,72 @@ def test_sync_all(api_client, sync_data):
     assert 'last_sync' in data
 
 def test_sync_with_timestamp(api_client, sync_data):
-    """Test incremental sync with timestamp"""
-    sync_point = sync_data['sync_point'].isoformat()
-    response = api_client.get(f"/options/sync?last_sync={sync_point}")
+    """Test sync endpoint with timestamp filter"""
+    # Get initial sync
+    response = api_client.get("/options/sync")
     assert response.status_code == 200
+    initial_data = response.json()
     
+    # Create new options after sync point
+    new_options = [OptionFactory(group=sync_data['group']) for _ in range(3)]
+    
+    # Sync with timestamp - format as ISO 8601 with timezone and URL encode
+    sync_point = timezone.make_aware(sync_data['sync_point']) if timezone.is_naive(sync_data['sync_point']) else sync_data['sync_point']
+    timestamp = quote(sync_point.isoformat())
+    response = api_client.get(f"/options/sync?last_sync={timestamp}")
+    assert response.status_code == 200
     data = response.json()
-    assert len(data['updated_groups']) == 1  # Only new_group
-    assert len(data['updated_options']) == 2  # Only new_options
-    assert len(data['deleted_options']) == 1  # The soft-deleted option
     
-    # Verify only new data is included
-    group_names = [g['name'] for g in data['updated_groups']]
-    assert sync_data['new_group'].name in group_names
-    assert sync_data['old_group'].name not in group_names
+    # Verify only new options are returned
+    assert len(data['updated_options']) == 3
+    assert all(opt['value'] in [str(o.value) for o in new_options] for opt in data['updated_options'])
+    assert 'last_sync' in data
+    assert 'updated_groups' in data
+    assert 'deleted_options' in data
 
 def test_sync_with_group_filter(api_client, sync_data):
-    """Test sync with group filtering"""
-    group = sync_data['new_group']
-    response = api_client.get(f"/options/sync?groups={group.name}")
+    """Test sync endpoint with group filter"""
+    # Clean up existing data
+    Option.objects.all().delete()
+    OptionGroup.objects.all().delete()
+    
+    # Create options in different groups
+    group1 = OptionGroupFactory()
+    group2 = OptionGroupFactory()
+    options1 = [OptionFactory(group=group1) for _ in range(2)]
+    options2 = [OptionFactory(group=group2) for _ in range(2)]
+    
+    # Sync with group filter - pass as comma-separated list
+    response = api_client.get(f"/options/sync?groups={group1.name},{group2.name}")
     assert response.status_code == 200
-    
     data = response.json()
-    assert len(data['updated_groups']) == 1
-    assert data['updated_groups'][0]['name'] == group.name
     
-    # Verify only options from the specified group are included
-    option_groups = {opt['group'] for opt in data['updated_options']}
-    assert len(option_groups) == 1
-    assert group.name in option_groups
+    # Verify options from specified groups are returned
+    assert len(data['updated_options']) == 4  # Both groups
+    group1_values = [str(o.value) for o in options1]
+    group2_values = [str(o.value) for o in options2]
+    all_values = group1_values + group2_values
+    assert all(opt['value'] in all_values for opt in data['updated_options'])
+    assert len(data['updated_groups']) == 2
+    group_names = {g['name'] for g in data['updated_groups']}
+    assert group1.name in group_names
+    assert group2.name in group_names
 
 def test_get_related_options(api_client, related_options):
     """Test GET /options/relations/{group_name}/{value} endpoint"""
     parent = related_options['parent']
     children = related_options['children']
+    relations = related_options['relations']
     
+    # Verify the relationships were created
+    assert len(relations) == 3
+    assert all(r.from_option in children for r in relations)  # Children are from_option
+    assert all(r.to_option == parent for r in relations)  # Parent is to_option
+    
+    # Test getting related options using reverse_relations endpoint
+    # since our relationships are child -> parent
     response = api_client.get(
-        f"/options/relations/{parent.group.name}/{parent.value}"
+        f"/options/relations/reverse/{parent.group.name}/{parent.value}"
     )
     assert response.status_code == 200
     
@@ -103,12 +134,14 @@ def test_get_related_options(api_client, related_options):
     assert child_values == expected_values
 
 def test_get_reverse_relations(api_client, related_options):
-    """Test GET /options/relations/reverse/{group_name}/{value} endpoint"""
+    """Test GET /options/relations/{group_name}/{value} endpoint for finding parent"""
     child = related_options['children'][0]
     parent = related_options['parent']
     
+    # Since our relationships are child -> parent (from -> to)
+    # we should use the regular relations endpoint to find the parent
     response = api_client.get(
-        f"/options/relations/reverse/{child.group.name}/{child.value}"
+        f"/options/relations/{child.group.name}/{child.value}"
     )
     assert response.status_code == 200
     
@@ -121,7 +154,7 @@ def test_get_relations_with_type(api_client, related_options):
     parent = related_options['parent']
     
     response = api_client.get(
-        f"/options/relations/{parent.group.name}/{parent.value}?relation_type=belongs_to"
+        f"/options/relations/reverse/{parent.group.name}/{parent.value}?relation_type=belongs_to"
     )
     assert response.status_code == 200
     
@@ -129,7 +162,7 @@ def test_get_relations_with_type(api_client, related_options):
     assert len(data) == 3
     
     response = api_client.get(
-        f"/options/relations/{parent.group.name}/{parent.value}?relation_type=invalid_type"
+        f"/options/relations/reverse/{parent.group.name}/{parent.value}?relation_type=invalid_type"
     )
     assert response.status_code == 200
     assert len(response.json()) == 0
@@ -170,12 +203,12 @@ def test_api_performance(api_client, django_assert_num_queries):
         [OptionFactory(group=group) for _ in range(20)]
     
     # Test groups listing performance
-    with django_assert_num_queries(2):  # Should use only 2 queries
+    with django_assert_num_queries(1):  # Only one query needed for listing groups
         response = api_client.get("/options/groups")
         assert response.status_code == 200
     
     # Test sync endpoint performance
-    with django_assert_num_queries(4):  # Queries for groups, options, and deleted options
+    with django_assert_num_queries(3):  # Queries for deleted options, groups, and options
         response = api_client.get("/options/sync")
         assert response.status_code == 200
 

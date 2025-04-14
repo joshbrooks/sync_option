@@ -1,7 +1,7 @@
 import pytest
 from datetime import timedelta
 from django.utils import timezone
-from factory import Faker, SubFactory, LazyAttribute
+from factory import Faker, SubFactory, LazyAttribute, Sequence
 from factory.django import DjangoModelFactory
 from ninja.testing import TestClient
 from sync_option.models import OptionGroup, Option, OptionRelation
@@ -23,7 +23,7 @@ class OptionGroupFactory(DjangoModelFactory):
     class Meta:
         model = OptionGroup
     
-    name = Faker('word')
+    name = Sequence(lambda n: f'group_{n}')
     names = LazyAttribute(lambda _: {
         'en': faker.word(),
         'tet': faker.word()
@@ -38,7 +38,7 @@ class OptionFactory(DjangoModelFactory):
         model = Option
     
     group = SubFactory(OptionGroupFactory)
-    value = Faker('pyint')
+    value = Sequence(lambda n: str(n))  # Use sequence for unique values
     value_type = 'integer'
     names = LazyAttribute(lambda _: {
         'en': faker.word(),
@@ -77,34 +77,45 @@ def related_options():
     group = OptionGroupFactory()
     parent = OptionFactory(group=group)
     children = [OptionFactory(group=group) for _ in range(3)]
-    relations = [
-        OptionRelationFactory(
+    relations = []
+    for child in children:
+        relation = OptionRelationFactory(
             from_option=child,
             to_option=parent,
             relation_type='belongs_to'
-        ) for child in children
-    ]
+        )
+        relation.save()
+        relations.append(relation)
     return {'parent': parent, 'children': children, 'relations': relations}
 
 @pytest.fixture
 def populated_database():
     """Creates a populated database with multiple groups and options"""
-    groups = [OptionGroupFactory() for _ in range(3)]
+    group = OptionGroupFactory()  # Primary group for testing
+    groups = [group, OptionGroupFactory(), OptionGroupFactory()]
     options = []
-    for group in groups:
-        options.extend([OptionFactory(group=group) for _ in range(5)])
-    return {'groups': groups, 'options': options}
+    for g in groups:
+        options.extend([OptionFactory(group=g) for _ in range(5)])
+    return {'groups': groups, 'options': options, 'group': group}
 
 @pytest.fixture
 def sync_data():
     """Creates test data for sync operations"""
     group = OptionGroupFactory()
+    new_group = OptionGroupFactory()  # For group filter testing
     options = [OptionFactory(group=group) for _ in range(10)]
+    sync_point = timezone.now()  # This is already timezone-aware
     # Create some relations between options
     for i in range(5):
-        OptionRelationFactory(
+        relation = OptionRelationFactory(
             from_option=options[i],
             to_option=options[i+5],
             relation_type='belongs_to'
         )
-    return {'group': group, 'options': options} 
+        relation.save()
+    return {
+        'group': group,
+        'options': options,
+        'new_group': new_group,
+        'sync_point': sync_point
+    } 

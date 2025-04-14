@@ -16,7 +16,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from ninja import NinjaAPI
+from sync_option.api import router as sync_option_router
+
+# Create the main API instance
+api = NinjaAPI()
+
+# Include the sync_option router under the /api prefix
+api.add_router("/sync-option", sync_option_router)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/', api.urls),  # Django Ninja API endpoints
 ]
