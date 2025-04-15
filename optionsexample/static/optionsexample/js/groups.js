@@ -1,39 +1,8 @@
-// IndexedDB setup
-const DB_NAME = 'optionsDB';
-const DB_VERSION = 1;
-const STORE_NAME = 'optionGroups';
-let db;
-
-// Initialize IndexedDB
-function initDB() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-        request.onerror = () => {
-            console.error('Error opening database');
-            reject(request.error);
-        };
-
-        request.onsuccess = () => {
-            db = request.result;
-            resolve();
-        };
-
-        request.onupgradeneeded = (event) => {
-            const db = event.target.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                const store = db.createObjectStore(STORE_NAME, { keyPath: 'name' });
-                store.createIndex('last_updated', 'last_updated', { unique: false });
-            }
-        };
-    });
-}
-
 // Save groups to IndexedDB
 function saveGroups(groups) {
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction([STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
+        const transaction = DB.getTransaction(DB.GROUPS_STORE, 'readwrite');
+        const store = DB.getStore(transaction, DB.GROUPS_STORE);
 
         groups.forEach(group => {
             store.put(group);
@@ -47,8 +16,8 @@ function saveGroups(groups) {
 // Get all groups from IndexedDB
 function getAllGroups() {
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction([STORE_NAME], 'readonly');
-        const store = transaction.objectStore(STORE_NAME);
+        const transaction = DB.getTransaction(DB.GROUPS_STORE, 'readonly');
+        const store = DB.getStore(transaction, DB.GROUPS_STORE);
         const request = store.getAll();
 
         request.onsuccess = () => resolve(request.result);
@@ -105,7 +74,7 @@ function highlightUpdatedRows(updatedGroups) {
 // Main sync function
 async function syncGroups() {
     try {
-        const lastSync = localStorage.getItem('lastSync');
+        const lastSync = await DB.getLastUpdated(DB.GROUPS_STORE);
         const groups = await fetchGroups(lastSync);
         
         if (groups.length > 0) {
@@ -115,7 +84,6 @@ async function syncGroups() {
             highlightUpdatedRows(groups);
         }
 
-        localStorage.setItem('lastSync', new Date().toISOString());
         document.getElementById('lastSyncTime').textContent = new Date().toLocaleString();
     } catch (error) {
         console.error('Error during sync:', error);
@@ -125,7 +93,7 @@ async function syncGroups() {
 // Initialize and start periodic sync
 async function init() {
     try {
-        await initDB();
+        await DB.initDB();
         await syncGroups();
         setInterval(syncGroups, 5000);
     } catch (error) {

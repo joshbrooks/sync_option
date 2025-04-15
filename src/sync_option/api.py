@@ -32,10 +32,12 @@ class OptionSchema(Schema):
         return str(obj.typed_value)
 
 class OptionRelationSchema(Schema):
+    id: int
     from_option: OptionSchema
     to_option: OptionSchema
     relation_type: str
     metadata: dict
+    last_updated: datetime
 
 class SyncResponse(Schema):
     updated_groups: List[OptionGroupSchema]
@@ -50,10 +52,15 @@ def list_groups(request):
     return OptionGroup.objects.all()
 
 @router.get("/options/groups/{group_name}", response=List[OptionSchema])
-def get_group_options(request, group_name: str):
+def get_group_options(request, group_name: str, last_sync: Optional[datetime] = None):
     """Get all options for a specific group"""
     group = get_object_or_404(OptionGroup, name=group_name)
-    return Option.objects.filter(group=group, is_active=True)
+    queryset = Option.objects.filter(group=group, is_active=True)
+    
+    if last_sync:
+        queryset = queryset.filter(last_updated__gt=last_sync)
+    
+    return queryset
 
 @router.get("/options/sync", response=SyncResponse)
 def sync_options(
@@ -125,4 +132,14 @@ def get_reverse_relations(
     if relation_type:
         relations = relations.filter(relation_type=relation_type)
     
-    return [relation.from_option for relation in relations.select_related('from_option')] 
+    return [relation.from_option for relation in relations.select_related('from_option')]
+
+@router.get("/options/relations", response=List[OptionRelationSchema])
+def get_relations(request, last_sync: Optional[datetime] = None):
+    """Get all option relations"""
+    queryset = OptionRelation.objects.all()
+    
+    if last_sync:
+        queryset = queryset.filter(last_updated__gt=last_sync)
+    
+    return queryset.select_related('from_option', 'to_option') 

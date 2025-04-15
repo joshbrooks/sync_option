@@ -5,7 +5,7 @@ from factory import Faker, SubFactory, LazyAttribute, Sequence
 from factory.django import DjangoModelFactory
 from ninja.testing import TestClient
 from sync_option.models import OptionGroup, Option, OptionRelation
-from sync_option.api import api
+from sync_option import api
 from faker import Faker as FakerLib
 import os
 
@@ -16,7 +16,7 @@ faker = FakerLib()
 def api_client():
     # Set environment variable to skip registry validation during tests
     os.environ["NINJA_SKIP_REGISTRY"] = "1"
-    return TestClient(api)
+    return TestClient(api.router)
 
 # Factories
 class OptionGroupFactory(DjangoModelFactory):

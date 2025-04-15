@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Option Groups</title>
+    <title>Option Relations</title>
     <style>
         table {
             width: 100%;
@@ -23,39 +23,38 @@
             background-color: #ffffcc;
             transition: background-color 1s;
         }
-        .options-link {
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
             color: #0066cc;
             text-decoration: none;
         }
-        .options-link:hover {
+        .back-link:hover {
             text-decoration: underline;
         }
     </style>
 </head>
 <body>
-    <h1>Option Groups</h1>
+    <a href="{% url 'groups' %}" class="back-link">← Back to Groups</a>
+    <h1>Option Relations</h1>
     <div id="lastSync">Last sync: <span id="lastSyncTime">Never</span></div>
-    <div style="margin-bottom: 20px;">
-        <a href="{% url 'relations' %}" class="options-link">View All Relations</a>
-    </div>
-    <table id="groupsTable">
+    <table id="relationsTable">
         <thead>
             <tr>
-                <th>Name</th>
-                <th>English Name</th>
-                <th>English Description</th>
+                <th>From Option</th>
+                <th>To Option</th>
+                <th>Relation Type</th>
                 <th>Last Updated</th>
-                <th>Actions</th>
             </tr>
         </thead>
-        <tbody id="groupsTableBody">
+        <tbody id="relationsTableBody">
         </tbody>
     </table>
 
     <script>
-        const GROUPS_API_URL = "{% url 'api-1.0.0:list_groups' %}";
+        const RELATIONS_API_URL = "{% url 'api-1.0.0:get_relations' %}";
     </script>
     <script src="{% static 'optionsexample/js/db.js' %}"></script>
-    <script src="{% static 'optionsexample/js/groups.js' %}"></script>
+    <script src="{% static 'optionsexample/js/relations.js' %}"></script>
 </body>
 </html> 
