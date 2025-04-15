@@ -1,5 +1,10 @@
 {
   "devDependencies": {
+    "@types/jest": "^29.5.14",
     "cypress": "^14.3.0"
+  },
+  "dependencies": {
+    "ulid": "^3.0.0",
+    "vitest": "^3.1.1"
   }
 }
