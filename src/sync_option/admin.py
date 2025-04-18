@@ -3,9 +3,8 @@ from .models import OptionGroup, Option, OptionRelation
 
 @admin.register(OptionGroup)
 class OptionGroupAdmin(admin.ModelAdmin):
-    list_display = ('name', 'get_names', 'get_descriptions', 'last_updated')
+    list_display = ('name', 'get_names', 'get_descriptions', 'sync_id')
     search_fields = ('name', 'names', 'descriptions')
-    readonly_fields = ('last_updated',)
 
     def get_names(self, obj):
         return f"{obj.names.get('en', '')} / {obj.names.get('tet', '')}"
@@ -17,10 +16,9 @@ class OptionGroupAdmin(admin.ModelAdmin):
 
 @admin.register(Option)
 class OptionAdmin(admin.ModelAdmin):
-    list_display = ('value', 'group', 'get_names', 'value_type', 'is_active', 'last_updated')
+    list_display = ('value', 'group', 'get_names', 'value_type', 'is_active', 'sync_id')
     list_filter = ('group', 'value_type', 'is_active')
     search_fields = ('value', 'names', 'descriptions')
-    readonly_fields = ('last_updated',)
 
     def get_names(self, obj):
         return f"{obj.names.get('en', '')} / {obj.names.get('tet', '')}"
@@ -28,7 +26,6 @@ class OptionAdmin(admin.ModelAdmin):
 
 @admin.register(OptionRelation)
 class OptionRelationAdmin(admin.ModelAdmin):
-    list_display = ('from_option', 'to_option', 'relation_type', 'last_updated')
+    list_display = ('from_option', 'to_option', 'relation_type')
     list_filter = ('relation_type',)
     search_fields = ('from_option__value', 'to_option__value')
-    readonly_fields = ('last_updated',)

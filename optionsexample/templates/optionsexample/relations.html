@@ -38,6 +38,9 @@
     <a href="{% url 'groups' %}" class="back-link">← Back to Groups</a>
     <h1>Option Relations</h1>
     <div id="lastSync">Last sync: <span id="lastSyncTime">Never</span></div>
+    <div style="margin-bottom: 20px;">
+        <button onclick="syncClient.sync(true)" style="margin-right: 10px;">Force Sync</button>
+    </div>
     <table id="relationsTable">
         <thead>
             <tr>
@@ -51,10 +54,43 @@
         </tbody>
     </table>
 
-    <script>
-        const RELATIONS_API_URL = "{% url 'api-1.0.0:get_relations' %}";
-    </script>
     <script src="{% static 'optionsexample/js/db.js' %}"></script>
-    <script src="{% static 'optionsexample/js/relations.js' %}"></script>
+    <script src="{% static 'optionsexample/js/sync.js' %}"></script>
+    <script>
+        // Initialize the sync client and load data
+        async function initializeAndLoad() {
+            await syncClient.initialize();
+            await updateTable();
+            
+            // Set up sync event listener
+            window.addEventListener('sync-option-updated', updateTable);
+            
+            // Start initial sync
+            syncClient.sync();
+        }
+
+        async function updateTable() {
+            const relations = await syncClient.getGroupRelations();
+            const tbody = document.getElementById('relationsTableBody');
+            tbody.innerHTML = '';
+
+            relations.forEach(relation => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${relation.from_option}</td>
+                    <td>${relation.to_option}</td>
+                    <td>${relation.relation_type}</td>
+                    <td>${new Date(relation.sync_id).toLocaleString()}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Update last sync time
+            document.getElementById('lastSyncTime').textContent = new Date().toLocaleString();
+        }
+
+        // Start everything
+        initializeAndLoad();
+    </script>
 </body>
 </html> 

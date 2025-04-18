@@ -124,7 +124,6 @@ This guide explains how to perform common operations in the Django admin interfa
 3. **Data Integrity**
    - Keep options active unless explicitly deactivating
    - Maintain consistent value types within groups
-   - Update last_updated timestamps automatically
 
 4. **Multilingual Support**
    - Always provide both English and Tetum translations

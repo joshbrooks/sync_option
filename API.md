@@ -69,24 +69,18 @@ def sync_options(
     queryset = Option.objects.all()
     groups_queryset = OptionGroup.objects.all()
     
-    if last_sync:
-        queryset = queryset.filter(last_updated__gt=last_sync)
-        groups_queryset = groups_queryset.filter(last_updated__gt=last_sync)
-    
     if groups:
         queryset = queryset.filter(group__name__in=groups)
         groups_queryset = groups_queryset.filter(name__in=groups)
     
     deleted = Option.objects.filter(
         is_active=False,
-        last_updated__gt=last_sync
     ).values_list('id', flat=True)
     
     return SyncResponse(
         updated_groups=groups_queryset,
         updated_options=queryset.filter(is_active=True),
-        deleted_options=list(deleted),
-        last_sync=datetime.now()
+        deleted_options=list(deleted)
     )
 ```
 

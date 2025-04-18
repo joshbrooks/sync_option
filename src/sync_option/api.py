@@ -1,145 +1,90 @@
-from datetime import datetime
 from typing import List, Optional
-from ninja import NinjaAPI, Schema, Router
+from ninja import ModelSchema, Router, Field
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
-from .models import OptionGroup, Option, OptionRelation
+from django.db.models import Q
+from django.http import HttpRequest, HttpResponse
 
-# Create a timezone-aware minimum datetime
-MIN_DATETIME = timezone.make_aware(datetime.min)
+from .models import OptionGroup, Option, OptionRelation, ManifestEntry
 
-# Create a router instead of a NinjaAPI instance
 router = Router()
 
-# Schemas
-class OptionGroupSchema(Schema):
-    name: str
-    names: dict
-    descriptions: dict
-    last_updated: datetime
 
-class OptionSchema(Schema):
-    value: str
-    value_type: str
-    names: dict
-    descriptions: dict
-    is_active: bool
-    last_updated: datetime
+
+@router.get("/manifest", response=list[ManifestEntry])
+def get_manifest(request: HttpRequest, response: HttpResponse):
+    """
+    Get the manifest of the options URL
+    """
+    return OptionGroup.get_manifest()
+
+
+class OptionGroupSchema(ModelSchema):
+
+    class Meta:
+        model = OptionGroup
+        fields = ['name', 'names', 'descriptions', "sync_id"]
+
+class OptionSchema(ModelSchema):
     typed_value: Optional[str] = None
+
+    class Meta:
+        model = Option
+        fields = ['value', 'value_type', 'names', 'descriptions', 'is_active', "sync_id"]
 
     @staticmethod
     def resolve_typed_value(obj):
         return str(obj.typed_value)
 
-class OptionRelationSchema(Schema):
-    id: int
-    from_option: OptionSchema
-    to_option: OptionSchema
-    relation_type: str
-    metadata: dict
-    last_updated: datetime
+class OptionRelationSchema(ModelSchema):
+    from_node: str = Field(None)
+    from_group: str = Field(None)
+    to_node: str = Field(None)
+    to_group: str = Field(None)
 
-class SyncResponse(Schema):
-    updated_groups: List[OptionGroupSchema]
-    updated_options: List[OptionSchema]
-    deleted_options: List[int]
-    last_sync: datetime
+    class Meta:
+        model = OptionRelation
+        fields = ['relation_type', 'sync_id']
 
-# Endpoints
+    @staticmethod
+    def resolve_from_group(obj: OptionRelation) -> str:
+        return obj.from_option.group.name
+
+    @staticmethod
+    def resolve_from_node(obj: OptionRelation) -> str:
+        return obj.from_option.sync_id.hex[-12:]
+
+    @staticmethod
+    def resolve_to_node(obj: OptionRelation) -> str:
+        return obj.to_option.sync_id.hex[-12:]
+
+    @staticmethod
+    def resolve_to_group(obj: OptionRelation) -> str:
+        return obj.to_option.group.name
+
+
 @router.get("/options/groups", response=List[OptionGroupSchema])
-def list_groups(request):
+def list_groups(request, response:HttpResponse):
     """Get all option groups"""
-    return OptionGroup.objects.all()
-
-@router.get("/options/groups/{group_name}", response=List[OptionSchema])
-def get_group_options(request, group_name: str, last_sync: Optional[datetime] = None):
-    """Get all options for a specific group"""
-    group = get_object_or_404(OptionGroup, name=group_name)
-    queryset = Option.objects.filter(group=group, is_active=True)
-    
-    if last_sync:
-        queryset = queryset.filter(last_updated__gt=last_sync)
-    
+    queryset = OptionGroup.objects.all()
+    response.headers["Etag"] = OptionGroup.max_sync_id(queryset)
     return queryset
 
-@router.get("/options/sync", response=SyncResponse)
-def sync_options(
-    request,
-    last_sync: Optional[datetime] = None,
-    groups: Optional[List[str]] = None
-):
-    """
-    Incremental sync endpoint for options
-    - Returns only items updated since last_sync
-    - Can filter by specific groups
-    """
-    queryset = Option.objects.all()
-    groups_queryset = OptionGroup.objects.all()
-    
-    if last_sync:
-        queryset = queryset.filter(last_updated__gt=last_sync)
-        groups_queryset = groups_queryset.filter(last_updated__gt=last_sync)
-    
-    if groups:
-        queryset = queryset.filter(group__name__in=groups)
-        groups_queryset = groups_queryset.filter(name__in=groups)
-    
-    deleted = Option.objects.filter(
-        is_active=False,
-        last_updated__gt=last_sync if last_sync else MIN_DATETIME
-    ).values_list('id', flat=True)
-    
-    return {
-        "updated_groups": groups_queryset,
-        "updated_options": queryset.filter(is_active=True),
-        "deleted_options": list(deleted),
-        "last_sync": timezone.now()
-    }
+@router.get("/options/groups/{group_name}", response=List[OptionSchema])
+def get_group_options(request: HttpRequest, response: HttpResponse, group_name: str):
+    """Get all options for a specific group"""
+    queryset = Option.objects.filter(group=get_object_or_404(OptionGroup, name=group_name))
+    response.headers["Etag"] = Option.max_sync_id(queryset)
+    return queryset
 
-@router.get("/options/relations/{group_name}/{value}", response=List[OptionSchema])
-def get_related_options(
-    request,
-    group_name: str,
-    value: str,
-    relation_type: Optional[str] = None
-):
-    """
-    Get related options for a specific option
-    Example: Get all subsectors for a sector
-    """
-    option = get_object_or_404(Option, group__name=group_name, value=value, is_active=True)
-    relations = option.relations_from.all()
-    
-    if relation_type:
-        relations = relations.filter(relation_type=relation_type)
-    
-    return [relation.to_option for relation in relations.select_related('to_option')]
-
-@router.get("/options/relations/reverse/{group_name}/{value}", response=List[OptionSchema])
-def get_reverse_relations(
-    request,
-    group_name: str,
-    value: str,
-    relation_type: Optional[str] = None
-):
-    """
-    Get options that relate to this option
-    Example: Get sector for a subsector
-    """
-    option = get_object_or_404(Option, group__name=group_name, value=value, is_active=True)
-    relations = option.relations_to.all()
-    
-    if relation_type:
-        relations = relations.filter(relation_type=relation_type)
-    
-    return [relation.from_option for relation in relations.select_related('from_option')]
-
-@router.get("/options/relations", response=List[OptionRelationSchema])
-def get_relations(request, last_sync: Optional[datetime] = None):
+@router.get("/options/relations/{group_name}", response=List[OptionRelationSchema])
+def get_relations(request: HttpRequest, response: HttpResponse, group_name: str):
     """Get all option relations"""
-    queryset = OptionRelation.objects.all()
-    
-    if last_sync:
-        queryset = queryset.filter(last_updated__gt=last_sync)
-    
-    return queryset.select_related('from_option', 'to_option') 
+    group = get_object_or_404(OptionGroup, name=group_name)
+
+    queryset = OptionRelation.objects.filter(
+        Q(to_option__group=group) | Q(from_option__group=group)
+    ).select_related('from_option', 'to_option', 'from_option__group', 'to_option__group')
+    response.headers["Etag"] = OptionRelation.max_sync_id(
+        queryset
+    )
+    return queryset

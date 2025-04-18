@@ -6,22 +6,84 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Option Groups</title>
     <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, sans-serif;
         }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
+        .container {
+            display: flex;
+            min-height: 100vh;
         }
-        th {
-            background-color: #f4f4f4;
+        .sidebar {
+            width: 300px;
+            background-color: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            padding: 20px;
+            overflow-y: auto;
         }
-        .updated {
-            background-color: #ffffcc;
-            transition: background-color 1s;
+        .main-content {
+            flex: 1;
+            padding: 20px;
+        }
+        .group-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .group-item {
+            padding: 12px 15px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            background-color: white;
+            border: 1px solid #dee2e6;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .group-item:hover {
+            background-color: #f0f0f0;
+            transform: translateX(5px);
+        }
+        .group-item.active {
+            background-color: #e7f1ff;
+            border-color: #b8daff;
+        }
+        .group-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        .group-description {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        .group-updated {
+            font-size: 0.8em;
+            color: #888;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .sync-info {
+            font-size: 0.9em;
+            color: #666;
+        }
+        .button {
+            padding: 8px 16px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .button:hover {
+            background-color: #f0f0f0;
         }
         .options-link {
             color: #0066cc;
@@ -33,29 +95,71 @@
     </style>
 </head>
 <body>
-    <h1>Option Groups</h1>
-    <div id="lastSync">Last sync: <span id="lastSyncTime">Never</span></div>
-    <div style="margin-bottom: 20px;">
-        <a href="{% url 'relations' %}" class="options-link">View All Relations</a>
+    <div class="container">
+        <aside class="sidebar">
+            <div class="header">
+                <h2 style="margin: 0">Groups</h2>
+                <button class="button" onclick="syncClient.sync(true)">↻ Sync</button>
+            </div>
+            <div class="sync-info" id="lastSync">Last sync: <span id="lastSyncTime">Never</span></div>
+            <ul id="groupsList" class="group-list">
+            </ul>
+        </aside>
+        <main class="main-content">
+            <div class="header">
+                <h1 style="margin: 0">Option Groups</h1>
+                <a href="{% url 'relations' %}" class="options-link">View All Relations</a>
+            </div>
+            <div id="groupDetails">
+                Select a group from the sidebar to view details
+            </div>
+        </main>
     </div>
-    <table id="groupsTable">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>English Name</th>
-                <th>English Description</th>
-                <th>Last Updated</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="groupsTableBody">
-        </tbody>
-    </table>
 
-    <script>
-        const GROUPS_API_URL = "{% url 'api-1.0.0:list_groups' %}";
-    </script>
     <script src="{% static 'optionsexample/js/db.js' %}"></script>
-    <script src="{% static 'optionsexample/js/groups.js' %}"></script>
+    <script src="{% static 'optionsexample/js/sync.js' %}"></script>
+    <script>
+        // Initialize the sync client and load data
+        async function initializeAndLoad() {
+            await syncClient.initialize();
+            await updateGroups();
+            
+            // Set up sync event listener
+            window.addEventListener('sync-option-updated', updateGroups);
+            
+            // Start initial sync
+            syncClient.sync();
+        }
+
+        async function updateGroups() {
+            const groups = await syncClient.getOptionGroups();
+            console.table(groups)
+            const groupsList = document.getElementById('groupsList');
+            groupsList.innerHTML = '';
+
+            groups.forEach(group => {
+                const li = document.createElement('li');
+                li.className = 'group-item';
+                li.innerHTML = `
+                    <div class="group-name">${group.name}</div>
+                    <div class="group-description">${group.names.en || ''}</div>
+                    <div class="group-updated">Updated: ${new Date(group.sync_id).toLocaleString()}</div>
+                `;
+                
+                // Add click handler to view options
+                li.onclick = () => {
+                    window.location.href = `/groups/${group.name}`;
+                };
+                
+                groupsList.appendChild(li);
+            });
+
+            // Update last sync time
+            document.getElementById('lastSyncTime').textContent = new Date().toLocaleString();
+        }
+
+        // Start everything
+        initializeAndLoad();
+    </script>
 </body>
 </html> 

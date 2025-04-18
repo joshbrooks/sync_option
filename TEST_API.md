@@ -31,13 +31,12 @@ def populated_database(option_group, related_options):
 def sync_data(populated_database):
     """Creates test data for sync endpoint testing"""
     # Create some data before the sync point
-    old_group = OptionGroupFactory(last_updated=timezone.now() - timedelta(hours=2))
+    old_group = OptionGroupFactory()
     old_options = [OptionFactory(group=old_group) for _ in range(3)]
     
     sync_point = timezone.now() - timedelta(hours=1)
     
     # Create some data after the sync point
-    new_group = OptionGroupFactory(last_updated=timezone.now())
     new_options = [OptionFactory(group=new_group) for _ in range(2)]
     
     # Soft delete one old option
@@ -70,7 +69,6 @@ def test_list_groups(api_client, populated_database):
     assert 'name' in group
     assert 'names' in group
     assert 'descriptions' in group
-    assert 'last_updated' in group
 
 def test_get_group_options(api_client, populated_database):
     """Test GET /options/groups/{group_name} endpoint"""
@@ -107,23 +105,7 @@ def test_sync_all(api_client, sync_data):
     assert 'updated_groups' in data
     assert 'updated_options' in data
     assert 'deleted_options' in data
-    assert 'last_sync' in data
 
-def test_sync_with_timestamp(api_client, sync_data):
-    """Test incremental sync with timestamp"""
-    sync_point = sync_data['sync_point'].isoformat()
-    response = api_client.get(f"/options/sync?last_sync={sync_point}")
-    assert response.status_code == 200
-    
-    data = response.json()
-    assert len(data['updated_groups']) == 1  # Only new_group
-    assert len(data['updated_options']) == 2  # Only new_options
-    assert len(data['deleted_options']) == 1  # The soft-deleted option
-    
-    # Verify only new data is included
-    group_names = [g['name'] for g in data['updated_groups']]
-    assert sync_data['new_group'].name in group_names
-    assert sync_data['old_group'].name not in group_names
 
 def test_sync_with_group_filter(api_client, sync_data):
     """Test sync with group filtering"""

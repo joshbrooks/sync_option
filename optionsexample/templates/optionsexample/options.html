@@ -6,6 +6,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Options for {{ group_name }}</title>
     <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 300px;
+            background-color: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .main-content {
+            flex: 1;
+            padding: 20px;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -32,30 +52,175 @@
         .back-link:hover {
             text-decoration: underline;
         }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .sync-info {
+            font-size: 0.9em;
+            color: #666;
+        }
+        .button {
+            padding: 8px 16px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .button:hover {
+            background-color: #f0f0f0;
+        }
+        .options-link {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        .options-link:hover {
+            text-decoration: underline;
+        }
+        .group-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .group-item {
+            padding: 12px 15px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            background-color: white;
+            border: 1px solid #dee2e6;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .group-item:hover {
+            background-color: #f0f0f0;
+            transform: translateX(5px);
+        }
+        .group-item.active {
+            background-color: #e7f1ff;
+            border-color: #b8daff;
+        }
+        .group-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        .group-description {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        .group-updated {
+            font-size: 0.8em;
+            color: #888;
+        }
     </style>
 </head>
 <body>
-    <a href="{% url 'groups' %}" class="back-link">← Back to Groups</a>
-    <h1>Options for {{ group_name }}</h1>
-    <div id="lastSync">Last sync: <span id="lastSyncTime">Never</span></div>
-    <table id="optionsTable">
-        <thead>
-            <tr>
-                <th>Value</th>
-                <th>English Name</th>
-                <th>English Description</th>
-                <th>Last Updated</th>
-            </tr>
-        </thead>
-        <tbody id="optionsTableBody">
-        </tbody>
-    </table>
+    <div class="container">
+        <aside class="sidebar">
+            <div class="header">
+                <h2 style="margin: 0">Groups</h2>
+                <button class="button" onclick="syncClient.sync(true)">↻ Sync</button>
+            </div>
+            <div class="sync-info" id="lastSync">Last sync: <span id="lastSyncTime">Never</span></div>
+            <ul id="groupsList" class="group-list">
+            </ul>
+        </aside>
+        <main class="main-content">
+            <div class="header">
+                <div>
+                    <a href="{% url 'groups' %}" class="back-link">← Back to Groups</a>
+                    <h1 style="margin: 10px 0">Options for {{ group_name }}</h1>
+                </div>
+                <a href="{% url 'relations' %}" class="options-link">View All Relations</a>
+            </div>
+            <table id="optionsTable">
+                <thead>
+                    <tr>
+                        <th>Value</th>
+                        <th>English Name</th>
+                        <th>English Description</th>
+                        <th>Last Updated</th>
+                    </tr>
+                </thead>
+                <tbody id="optionsTableBody">
+                </tbody>
+            </table>
+        </main>
+    </div>
 
+    <script src="{% static 'optionsexample/js/db.js' %}"></script>
+    <script src="{% static 'optionsexample/js/sync.js' %}"></script>
     <script>
         const GROUP_NAME = "{{ group_name }}";
-        const OPTIONS_API_URL = "{% url 'api-1.0.0:get_group_options' group_name=group_name %}";
+
+        // Initialize the sync client and load data
+        async function initializeAndLoad() {
+            await syncClient.initialize();
+            await Promise.all([updateTable(), updateGroups()]);
+            
+            // Set up sync event listener
+            window.addEventListener('sync-option-updated', () => {
+                updateTable();
+                updateGroups();
+            });
+            
+            // Start initial sync
+            syncClient.sync();
+        }
+
+        async function updateGroups() {
+            const groups = await syncClient.getOptionGroups();
+            const groupsList = document.getElementById('groupsList');
+            groupsList.innerHTML = '';
+
+            groups.forEach(group => {
+                const li = document.createElement('li');
+                li.className = 'group-item' + (group.name === GROUP_NAME ? ' active' : '');
+                li.innerHTML = `
+                    <div class="group-name">${group.name}</div>
+                    <div class="group-description">${group.names.en || ''}</div>
+                    <div class="group-updated">Updated: ${new Date(group.sync_id).toLocaleString()}</div>
+                `;
+                
+                // Add click handler to view options
+                li.onclick = () => {
+                    if (group.name !== GROUP_NAME) {
+                        window.location.href = `/groups/${group.name}`;
+                    }
+                };
+                
+                groupsList.appendChild(li);
+            });
+
+            // Update last sync time
+            document.getElementById('lastSyncTime').textContent = new Date().toLocaleString();
+        }
+
+        async function updateTable() {
+            const options = await syncClient.getGroupOptions(GROUP_NAME);
+            const tbody = document.getElementById('optionsTableBody');
+            tbody.innerHTML = '';
+
+            options.forEach(option => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${option.value}</td>
+                    <td>${option.names.en || ''}</td>
+                    <td>${option.descriptions.en || ''}</td>
+                    <td>${new Date(option.sync_id).toLocaleString()}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Start everything
+        initializeAndLoad();
     </script>
-    <script src="{% static 'optionsexample/js/db.js' %}"></script>
-    <script src="{% static 'optionsexample/js/options.js' %}"></script>
 </body>
 </html> 

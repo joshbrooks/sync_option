@@ -20,7 +20,6 @@ def test_list_groups(api_client, populated_database):
     assert 'name' in group
     assert 'names' in group
     assert 'descriptions' in group
-    assert 'last_updated' in group
 
 def test_get_group_options(api_client, populated_database):
     """Test GET /options/groups/{group_name} endpoint"""
@@ -43,41 +42,6 @@ def test_get_nonexistent_group(api_client):
     """Test getting options for a non-existent group"""
     response = api_client.get("/options/groups/nonexistent")
     assert response.status_code == 404
-
-def test_sync_all(api_client, sync_data):
-    """Test GET /options/sync endpoint with no parameters"""
-    response = api_client.get("/options/sync")
-    assert response.status_code == 200
-    
-    data = response.json()
-    assert 'updated_groups' in data
-    assert 'updated_options' in data
-    assert 'deleted_options' in data
-    assert 'last_sync' in data
-
-def test_sync_with_timestamp(api_client, sync_data):
-    """Test sync endpoint with timestamp filter"""
-    # Get initial sync
-    response = api_client.get("/options/sync")
-    assert response.status_code == 200
-    initial_data = response.json()
-    
-    # Create new options after sync point
-    new_options = [OptionFactory(group=sync_data['group']) for _ in range(3)]
-    
-    # Sync with timestamp - format as ISO 8601 with timezone and URL encode
-    sync_point = timezone.make_aware(sync_data['sync_point']) if timezone.is_naive(sync_data['sync_point']) else sync_data['sync_point']
-    timestamp = quote(sync_point.isoformat())
-    response = api_client.get(f"/options/sync?last_sync={timestamp}")
-    assert response.status_code == 200
-    data = response.json()
-    
-    # Verify only new options are returned
-    assert len(data['updated_options']) == 3
-    assert all(opt['value'] in [str(o.value) for o in new_options] for opt in data['updated_options'])
-    assert 'last_sync' in data
-    assert 'updated_groups' in data
-    assert 'deleted_options' in data
 
 def test_sync_with_group_filter(api_client, sync_data):
     """Test sync endpoint with group filter"""
@@ -166,11 +130,6 @@ def test_get_relations_with_type(api_client, related_options):
     )
     assert response.status_code == 200
     assert len(response.json()) == 0
-
-def test_invalid_sync_timestamp(api_client):
-    """Test sync endpoint with invalid timestamp"""
-    response = api_client.get("/options/sync?last_sync=invalid")
-    assert response.status_code == 422  # Validation error
 
 def test_nonexistent_relation_option(api_client, populated_database):
     """Test relations endpoint with non-existent option"""

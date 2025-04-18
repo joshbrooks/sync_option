@@ -8,7 +8,10 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
+    "canonicaljson>=2.0.0",
     "django-ninja>=1.4.1",
+    "uuid-utils>=0.10.0",
+    "uuid7>=0.1.0",
 ]
 
 [project.scripts]

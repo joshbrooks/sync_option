@@ -150,23 +150,3 @@ def test_cascade_soft_delete(related_options):
     # Check that parent is not in active options
     assert not Option.objects.filter(id=parent.id, is_active=True).exists()
     assert Option.objects.filter(id=parent.id, is_active=False).exists()
-
-def test_last_updated_tracking(option_group, option):
-    """Test that last_updated is properly maintained"""
-    original_group_updated = option_group.last_updated
-    original_option_updated = option.last_updated
-    
-    # Wait a moment to ensure timestamp difference
-    import time
-    time.sleep(0.001)
-    
-    # Update objects
-    option_group.name = 'new_name'
-    option_group.save()
-    
-    option.value = 123  # Use integer value instead of string
-    option.save()
-    
-    # Check timestamps were updated
-    assert option_group.last_updated > original_group_updated
-    assert option.last_updated > original_option_updated 

@@ -14,6 +14,28 @@
             "django": true,
             "autoStartBrowser": false,
             "program": "${workspaceFolder}/manage.py"
+        },
+        {
+            "name": "Python Debugger: Django migrate",
+            "type": "debugpy",
+            "request": "launch",
+            "args": [
+                "migrate"
+            ],
+            "django": true,
+            "autoStartBrowser": false,
+            "program": "${workspaceFolder}/manage.py"
+        },
+        {
+            "name": "Python Debugger: Django load",
+            "type": "debugpy",
+            "request": "launch",
+            "args": [
+                "load_demo_data", "--clear"
+            ],
+            "django": true,
+            "autoStartBrowser": false,
+            "program": "${workspaceFolder}/manage.py"
         }
     ]
 }
