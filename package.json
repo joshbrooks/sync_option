@@ -1,5 +1,8 @@
 {
   "devDependencies": {
     "cypress": "^14.3.0"
+  },
+  "dependencies": {
+    "idb": "^8.0.2"
   }
 }
