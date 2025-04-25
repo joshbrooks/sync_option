@@ -92,7 +92,72 @@ class OptionGroup(SyncModel):
         for group in groups:
             returns.append(ManifestEntry(url=group.options_url, etag=group.latest_option_change))
             returns.append(ManifestEntry(url=group.relations_url, etag=group.latest_relation_change))
+        returns.append(ManifestEntry(url=reverse("api-1.0.0:get_relations"), etag=GroupRelationType.max_sync_id(GroupRelationType.objects.all())))
         return returns
+
+
+class GroupRelationType(SyncModel):
+    """
+    Defines the types of relationships that can exist between options in different groups.
+    For example: 'belongs_to', 'contains', 'references', etc.
+    
+    Cardinality is controlled by two boolean fields:
+    - from_many: If True, multiple options from from_group can relate to the same to_group option
+    - to_many: If True, one from_group option can relate to multiple to_group options
+    
+    Examples:
+    - Suku belongs to Subdistrict: from_many=True, to_many=False
+      (many sukus belong to one subdistrict)
+    - Activity has Outputs: from_many=True, to_many=True
+      (many activities can have many outputs)
+    """
+    name = models.CharField(max_length=50)
+    from_group = models.ForeignKey(OptionGroup, on_delete=models.CASCADE, related_name='relation_types_from')
+    to_group = models.ForeignKey(OptionGroup, on_delete=models.CASCADE, related_name='relation_types_to')
+    from_many = models.BooleanField(
+        default=False,
+        help_text="If True, multiple options from from_group can relate to the same to_group option"
+    )
+    to_many = models.BooleanField(
+        default=False,
+        help_text="If True, one from_group option can relate to multiple to_group options"
+    )
+    names = models.JSONField(default=dict)  # Translatable display names
+    descriptions = models.JSONField(default=dict, null=True, blank=True)  # Translatable descriptions
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['from_group', 'to_group', 'name'],
+                name='unique_group_relation_type'
+            )
+        ]
+
+    def __str__(self):
+        cardinality = f"{'many' if self.from_many else 'one'}-to-{'many' if self.to_many else 'one'}"
+        return f"{self.from_group.name} -> {self.name} ({cardinality}) -> {self.to_group.name}"
+
+    def clean(self):
+        """Validate that we don't have conflicting relationship types between the same groups"""
+        existing = GroupRelationType.objects.filter(
+            from_group=self.from_group,
+            to_group=self.to_group,
+            is_active=True
+        ).exclude(pk=self.pk)
+
+        if existing.exists() and not (self.from_many and self.to_many):
+            # If this is not a many-to-many relationship, we can't have multiple active relation types
+            # between the same groups unless all of them are many-to-many
+            conflicting = existing.exclude(from_many=True, to_many=True)
+            if conflicting.exists():
+                raise ValidationError(
+                    f'Cannot have multiple restricted cardinality relations from {self.from_group.name} to {self.to_group.name}'
+                )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 
 class Option(SyncModel):
@@ -108,7 +173,7 @@ class Option(SyncModel):
     value = models.CharField(max_length=255)
     value_type = models.CharField(max_length=10, choices=VALUE_TYPES)
     names = models.JSONField(default=dict)  # Translatable display names
-    descriptions = models.JSONField(default=dict)  # Translatable descriptions
+    descriptions = models.JSONField(default=dict, null=True, blank=True)  # Translatable descriptions
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -119,8 +184,15 @@ class Option(SyncModel):
             )
         ]
 
+    @property
+    def name_display(self, codes: list[str] = ['en', 'tet']):
+        names = [self.names.get(code) for code in codes if code in self.names]
+        if len(names) == 1:
+            return names[0]
+        return ' / '.join(names)
+
     def __str__(self):
-        return f"{self.group.name}: {self.value}"
+        return f"{self.group.name} {self.value} {self.name_display}"
 
     @property
     def typed_value(self):
@@ -141,7 +213,6 @@ class Option(SyncModel):
         self.full_clean()
         super().save(*args, **kwargs)
 
-
     def delete(self, *args, **kwargs):
         """Implement soft delete"""
         self.is_active = False
@@ -150,28 +221,25 @@ class Option(SyncModel):
 
 class OptionRelation(SyncModel):
     """
-    Defines relationships between options (e.g., sector -> subsector)
+    Defines relationships between options based on the relationship types defined between their groups
     """
     from_option = models.ForeignKey(
         Option,
         on_delete=models.CASCADE,
-        related_name='relations_from'
+        related_name='relations_from',
     )
     to_option = models.ForeignKey(
         Option,
         on_delete=models.CASCADE,
         related_name='relations_to'
     )
-    relation_type = models.CharField(max_length=50)
-    metadata = models.JSONField(default=dict)
+    relation_type = models.ForeignKey(
+        GroupRelationType,
+        on_delete=models.CASCADE,
+        related_name='option_relations',
+    )
+    metadata = models.JSONField(default=dict, null=True, blank=True)
 
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['from_option', 'to_option', 'relation_type'],
-                name='unique_option_relation'
-            )
-        ]
 
     def clean(self):
         """Validate the relation"""
@@ -181,9 +249,39 @@ class OptionRelation(SyncModel):
         # Check for circular relationships
         if OptionRelation.objects.filter(
             from_option=self.to_option,
-            to_option=self.from_option
+            to_option=self.from_option,
+            relation_type=self.relation_type
         ).exists():
             raise ValidationError('Circular relationships are not allowed')
+
+        # Validate that the relation type matches the groups of the options
+        if self.relation_type.from_group_id != self.from_option.group_id:
+            raise ValidationError('The relation type\'s from_group must match the from_option\'s group')
+        if self.relation_type.to_group_id != self.to_option.group_id:
+            raise ValidationError('The relation type\'s to_group must match the to_option\'s group')
+
+        # Validate cardinality constraints
+        if not self.relation_type.from_many:
+            # If from_many is False, each to_option can only be related to one from_option
+            if OptionRelation.objects.filter(
+                to_option=self.to_option,
+                relation_type=self.relation_type
+            ).exclude(pk=self.pk).exists():
+                raise ValidationError(
+                    f'This {self.relation_type.name} relationship allows only one {self.relation_type.from_group.name} '
+                    f'per {self.relation_type.to_group.name}'
+                )
+
+        if not self.relation_type.to_many:
+            # If to_many is False, each from_option can only be related to one to_option
+            if OptionRelation.objects.filter(
+                from_option=self.from_option,
+                relation_type=self.relation_type
+            ).exclude(pk=self.pk).exists():
+                raise ValidationError(
+                    f'This {self.relation_type.name} relationship allows only one {self.relation_type.to_group.name} '
+                    f'per {self.relation_type.from_group.name}'
+                )
 
     def save(self, *args, **kwargs):
         self.full_clean()

@@ -1,0 +1,170 @@
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div class="px-4 py-5 sm:px-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                {{ option.group.name|title }} Option Details
+            </h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">
+                Details and relationships for this option.
+            </p>
+        </div>
+        <div class="border-t border-gray-200">
+            <dl>
+                <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Value</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ option.value }}</dd>
+                </div>
+                <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Type</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ option.value_type }}</dd>
+                </div>
+                <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Names</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                        <ul class="border border-gray-200 rounded-md divide-y divide-gray-200">
+                            {% for lang, name in option.names.items %}
+                            <li class="pl-3 pr-4 py-3 flex items-center justify-between text-sm">
+                                <div class="w-0 flex-1 flex items-center">
+                                    <span class="ml-2 flex-1 w-0 truncate">
+                                        {{ lang }}: {{ name }}
+                                    </span>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </dd>
+                </div>
+                {% if option.descriptions %}
+                <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Descriptions</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                        <ul class="border border-gray-200 rounded-md divide-y divide-gray-200">
+                            {% for lang, desc in option.descriptions.items %}
+                            <li class="pl-3 pr-4 py-3 flex items-center justify-between text-sm">
+                                <div class="w-0 flex-1 flex items-center">
+                                    <span class="ml-2 flex-1 w-0 truncate">
+                                        {{ lang }}: {{ desc }}
+                                    </span>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </dd>
+                </div>
+                {% endif %}
+            </dl>
+        </div>
+    </div>
+
+    <!-- Outgoing Relations -->
+    <div id="outgoingRelations" class="mt-8 bg-white shadow overflow-hidden sm:rounded-lg" style="display: none;">
+        <div class="px-4 py-5 sm:px-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                Outgoing Relations
+            </h3>
+        </div>
+        <div class="border-t border-gray-200">
+            <ul id="outgoingRelationsList" class="divide-y divide-gray-200">
+                <!-- Outgoing relations will be populated here -->
+            </ul>
+        </div>
+    </div>
+
+    <!-- Incoming Relations -->
+    <div id="incomingRelations" class="mt-8 bg-white shadow overflow-hidden sm:rounded-lg" style="display: none;">
+        <div class="px-4 py-5 sm:px-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                Incoming Relations
+            </h3>
+        </div>
+        <div class="border-t border-gray-200">
+            <ul id="incomingRelationsList" class="divide-y divide-gray-200">
+                <!-- Incoming relations will be populated here -->
+            </ul>
+        </div>
+    </div>
+</div>
+
+{% load static %}
+<script src="https://cdn.jsdelivr.net/npm/idb@7/build/umd.js"></script>
+<script src="{% static 'optionsexample/js/db.js' %}"></script>
+<script src="{% static 'optionsexample/js/sync.js' %}"></script>
+<script type="module">
+    import { GraphModel } from "{% static 'optionsexample/js/models.js' %}";
+
+    const CURRENT_GROUP = "{{ option.group.name }}";
+    const CURRENT_VALUE = "{{ option.value }}";
+    const CURRENT_SYNC_ID = "{{ option.sync_id }}";
+
+    async function initializeGraph() {
+        const graph = new GraphModel();
+        
+        // Initialize sync client first
+        await syncClient.initialize();
+        
+        // Load all nodes and relations
+        await graph.loadAllNodes();
+        await graph.loadAllRelations();
+
+        // Find current node's ID (using last 12 chars of sync_id)
+        const currentNodeId = CURRENT_SYNC_ID.slice(-12);
+
+        // Get outgoing relations
+        const outgoingEdges = graph.getOutgoingEdges(currentNodeId);
+        if (outgoingEdges.length > 0) {
+            document.getElementById('outgoingRelations').style.display = 'block';
+            const outgoingList = document.getElementById('outgoingRelationsList');
+            
+            outgoingEdges.forEach(edge => {
+                const toNode = graph.nodes.get(edge.toNode);
+                if (!toNode) return;
+
+                const li = document.createElement('li');
+                li.className = 'px-4 py-4';
+                li.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <a href="/options/${toNode.group}/${toNode.data.value}" class="text-sm text-gray-900">
+                                ${toNode.group}: ${toNode.data.names.en || toNode.data.value}
+                            </a>
+                        </div>
+                    </div>
+                `;
+                outgoingList.appendChild(li);
+            });
+        }
+
+        // Get incoming relations
+        const incomingEdges = graph.getIncomingEdges(currentNodeId);
+        if (incomingEdges.length > 0) {
+            document.getElementById('incomingRelations').style.display = 'block';
+            const incomingList = document.getElementById('incomingRelationsList');
+            
+            incomingEdges.forEach(edge => {
+                const fromNode = graph.nodes.get(edge.fromNode);
+                if (!fromNode) return;
+
+                const li = document.createElement('li');
+                li.className = 'px-4 py-4';
+                li.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <a href="/options/${fromNode.group}/${fromNode.data.value}" class="text-sm text-gray-900 mr-2">
+                                ${fromNode.group}: ${fromNode.data.names.en || fromNode.data.value}
+                            </a>
+
+                        </div>
+                    </div>
+                `;
+                incomingList.appendChild(li);
+            });
+        }
+    }
+
+    // Initialize when the page loads
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeGraph();
+    });
+</script>
+{% endblock %} 

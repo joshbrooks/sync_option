@@ -131,7 +131,7 @@
             <ul id="groupsList" class="group-list">
             </ul>
         </aside>
-        <main class="main-content">
+        <main class="main-content" data-detail-url-pattern="{% url 'option_detail' 'GROUP_NAME_PLACEHOLDER' 'VALUE_PLACEHOLDER' %}">
             <div class="header">
                 <div>
                     <a href="{% url 'groups' %}" class="back-link">← Back to Groups</a>
@@ -146,6 +146,7 @@
                         <th>English Name</th>
                         <th>English Description</th>
                         <th>Last Updated</th>
+                        <th>Link</th>
                     </tr>
                 </thead>
                 <tbody id="optionsTableBody">
@@ -212,9 +213,10 @@
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${option.value}</td>
-                    <td>${option.names.en || ''}</td>
-                    <td>${option.descriptions.en || ''}</td>
+                    <td>${option.names.en || option.names.tet || ''}</td>
+                    <td>${option.descriptions.en || option.descriptions.tet || ''}</td>
                     <td>${new Date(option.sync_id).toLocaleString()}</td>
+                    <td><a href="${document.querySelector('.main-content').dataset.detailUrlPattern.replace('GROUP_NAME_PLACEHOLDER', GROUP_NAME).replace('VALUE_PLACEHOLDER', option.value)}" class="options-link">View Details</a></td>
                 `;
                 tbody.appendChild(row);
             });

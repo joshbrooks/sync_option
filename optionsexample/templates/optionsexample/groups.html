@@ -119,7 +119,25 @@
     <script src="https://cdn.jsdelivr.net/npm/idb@7/build/umd.js"></script>
     <script src="{% static 'optionsexample/js/db.js' %}"></script>
     <script src="{% static 'optionsexample/js/sync.js' %}"></script>
+
+    <script type="module">
+        import { GraphModel } from "{% static 'optionsexample/js/models.js' %}";
+
+        async function init() {
+            const model = new GraphModel();
+            await model.loadAllNodes();
+            await model.loadAllRelations();
+            return model
+        }
+
+        init().then(model => {
+            console.log(model);
+            debugger
+        });
+
+    </script>
     <script>
+
         // Initialize the sync client and load data
         async function initializeAndLoad() {
             await syncClient.initialize();
@@ -134,7 +152,6 @@
 
         async function updateGroups() {
             const groups = await syncClient.getOptionGroups();
-            console.table(groups)
             const groupsList = document.getElementById('groupsList');
             groupsList.innerHTML = '';
 

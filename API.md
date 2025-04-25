@@ -30,7 +30,7 @@ class OptionSchema(ModelSchema):
 class OptionRelationSchema(ModelSchema):
     class Meta:
         model = OptionRelation
-        fields = ['from_option', 'to_option', 'relation_type', 'metadata']
+        fields = ['from_option', 'to_option', 'metadata']
 
 class SyncResponse(Schema):
     """Response for incremental sync requests"""

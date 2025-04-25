@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sync Options Graph</title>
+    <!-- Define import map -->
+    <script type="importmap">
+    {
+        "imports": {
+            "@sync-option/models": "/static/optionsexample/js/models.js",
+            "@sync-option/": "/static/optionsexample/js/"
+        }
+    }
+    </script>
+</head>
+<body>
+    <div id="output"></div>
+
+    <script type="module">
+        import { GraphModel } from '@sync-option/models';
+
+        async function init() {
+            const graph = new GraphModel();
+            
+            try {
+                // Load all data
+                await graph.loadAllNodes();
+                await graph.loadAllRelations();
+                
+                // Example: Get all sector nodes
+                const sectorNodes = graph.getNodesInGroup('sector');
+                
+                // Display results
+                const output = document.getElementById('output');
+                output.innerHTML = `
+                    <h3>Sector Nodes</h3>
+                    <pre>${JSON.stringify(sectorNodes, null, 2)}</pre>
+                `;
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('output').innerHTML = `
+                    <div style="color: red">Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html> 

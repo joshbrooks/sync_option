@@ -67,7 +67,6 @@ class SyncOptionClient {
                 throw new Error(`Failed to fetch manifest: ${response.status}`);
             }
             const json = await response.json();
-            console.table(json)
             return json;
         } catch (error) {
             console.error('Error fetching manifest:', error);

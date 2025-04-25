@@ -38,7 +38,6 @@ async function getCachedData(url) {
 // Update cache with new data
 async function updateCache(url, etag, content) {
     try {
-        console.log('Updating cache', url, etag, content);
         await db.put(CACHE_STORE, { url, etag, content });
     } catch (error) {
         console.error('Error updating cache:', error);
@@ -51,7 +50,6 @@ async function syncData() {
     try {
         const manifestResponse = await fetch('/api/sync-option/manifest', {cache: "no-store"});
         const manifest = await manifestResponse.json();
-        console.table(manifest);
 
         for (const entry of manifest) {
             const cached = await getCachedData(entry.url);

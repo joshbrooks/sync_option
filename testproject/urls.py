@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from ninja import NinjaAPI
 from sync_option.api import router as sync_option_router
+from debug_toolbar.toolbar import debug_toolbar_urls
 
 # Create the main API instance
 api = NinjaAPI()
@@ -26,7 +27,8 @@ api = NinjaAPI()
 api.add_router("/sync-option", sync_option_router)
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('admin/', admin.site.urls),    
     path('api/', api.urls),  # Django Ninja API endpoints
     path('', include('optionsexample.urls')),
-]
+] + debug_toolbar_urls()
+

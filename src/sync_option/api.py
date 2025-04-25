@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
 
-from .models import OptionGroup, Option, OptionRelation, ManifestEntry
+from .models import OptionGroup, Option, OptionRelation, ManifestEntry, GroupRelationType
 
 router = Router()
 
@@ -35,6 +35,21 @@ class OptionSchema(ModelSchema):
     def resolve_typed_value(obj):
         return str(obj.typed_value)
 
+
+class GroupRelationTypeSchema(ModelSchema):
+    from_group: str = Field(None)
+    to_group: str = Field(None)
+
+    class Meta:
+        model = GroupRelationType
+        fields = ['name', 'from_many', 'to_many', "sync_id"]
+    @staticmethod
+    def resolve_from_group(obj):
+        return obj.from_group.name
+    @staticmethod
+    def resolve_to_group(obj):
+        return obj.to_group.name
+
 class OptionRelationSchema(ModelSchema):
     from_node: str = Field(None)
     from_group: str = Field(None)
@@ -43,7 +58,7 @@ class OptionRelationSchema(ModelSchema):
 
     class Meta:
         model = OptionRelation
-        fields = ['relation_type', 'sync_id']
+        fields = ['sync_id']
 
     @staticmethod
     def resolve_from_group(obj: OptionRelation) -> str:
@@ -74,6 +89,16 @@ def get_group_options(request: HttpRequest, response: HttpResponse, group_name: 
     """Get all options for a specific group"""
     queryset = Option.objects.filter(group=get_object_or_404(OptionGroup, name=group_name))
     response.headers["Etag"] = Option.max_sync_id(queryset)
+    return queryset
+
+@router.get("/options/grouprelations/", response=List[GroupRelationTypeSchema])
+def get_relations(request: HttpRequest, response: HttpResponse):
+    """Get all option relations"""
+
+    queryset = GroupRelationType.objects.all()
+    response.headers["Etag"] = OptionRelation.max_sync_id(
+        queryset
+    )
     return queryset
 
 @router.get("/options/relations/{group_name}", response=List[OptionRelationSchema])
