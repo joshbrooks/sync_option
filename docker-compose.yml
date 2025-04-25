@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  web:
+    image: catalpa/sync-option:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: final
+      tags:
+        - "catalpa/sync-option:${TAG:-latest}"
+        - "catalpa/sync-option:latest"
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - DEBUG=1
+      - DJANGO_SETTINGS_MODULE=testproject.settings
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 512M
+        reservations:
+          cpus: '1'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+      start_period: 5s

@@ -18,7 +18,8 @@ from django.contrib import admin
 from django.urls import path, include
 from ninja import NinjaAPI
 from sync_option.api import router as sync_option_router
-from debug_toolbar.toolbar import debug_toolbar_urls
+from .views import health_check
+from importlib.util import find_spec
 
 # Create the main API instance
 api = NinjaAPI()
@@ -30,5 +31,10 @@ urlpatterns = [
     path('admin/', admin.site.urls),    
     path('api/', api.urls),  # Django Ninja API endpoints
     path('', include('optionsexample.urls')),
-] + debug_toolbar_urls()
+    path('health/', health_check, name='health_check'),
+]
+
+if find_spec("debug_toolbar"):
+    from debug_toolbar.toolbar import debug_toolbar_urls
+    urlpatterns += debug_toolbar_urls()
 
